@@ -6,74 +6,84 @@ import "net"
 import "os/signal"
 import "encoding/json"
 
+type HandlerFunc func (chan Packet, chan interface{})
+
 type Packet struct {
     Body interface{}
     Channel string
 }
 
-func echoHandler(fd net.Conn) {
+func packetStreamer(fd net.Conn, handler HandlerFunc) {
+    // Without the buffer its possible that the call inbound <- p
+    // would block causing the decoder to never register the error
+    // and the go routine would never end
+    var inbound = make(chan Packet, 100)
+    var outbound = make(chan interface{})
+
     defer fd.Close()
+    defer close(outbound)
 
-    dec := json.NewDecoder(fd)
-    for {
-        var p Packet
-        err := dec.Decode(&p)
-        if err != nil {
-            fmt.Println("error:", err)
-            return
+    go func(){
+        for reply := range outbound {
+            output, err := json.Marshal(reply)
+            if err != nil {
+                fmt.Println("error:", err)
+            }
+            fd.Write(output)
+            fd.Write([]byte("\n"))
         }
-        fmt.Println("got:", p)
-
-        output, err := json.Marshal(p)
-        if err != nil {
-            fmt.Println("error:", err)
-            return
-        }
-        fd.Write(output)
-        fd.Write([]byte("\n"))
-        fd.Write(output)
-        fd.Write([]byte("\n"))
-        fd.Write(output)
-        fd.Write([]byte("\n"))
-    }
-}
-
-func echoServer(l net.Listener, die_ch chan bool){
-    defer func(){
-        die_ch <- true
     }()
 
-    for {
-        fd, err := l.Accept()
-        if err != nil {
-            fmt.Println("accept error", err)
-            return
+    go func () {
+        dec := json.NewDecoder(fd)
+        for {
+            var p Packet
+            err := dec.Decode(&p)
+            if err != nil {
+                fmt.Println("error:", err)
+                close(inbound)
+                return
+            }
+            fmt.Println("got:", p)
+            inbound <- p
         }
+    }()
 
-        fmt.Println("accepted connection")
-        go echoHandler(fd)
-    }
+    handler(inbound, outbound)
 }
 
-func main() {
-    l, err := net.Listen("unix", "/tmp/sockjs-unix.sock")
+func UnixSockJSServer(path string, handler HandlerFunc) error {
+    l, err := net.Listen("unix", path)
     if err != nil {
         fmt.Println("listen error", err)
-        return
+        return err
     }
     defer l.Close()
 
     var sig_ch = make(chan os.Signal, 1)
-    var die_ch = make(chan bool, 1)
+    var die_ch = make(chan error, 1)
 
     signal.Notify(sig_ch, os.Interrupt)
 
-    go echoServer(l, die_ch)
+    go func (){
+        for {
+            fd, err := l.Accept()
+            if err != nil {
+                fmt.Println("accept error", err)
+                die_ch <-err
+                return
+            }
+
+            fmt.Println("accepted connection")
+            go packetStreamer(fd, handler)
+        }
+    }()
 
     select {
     case <-sig_ch:
-        return
-    case <-die_ch:
-        return
+        return nil
+    case err = <-die_ch:
+        return err
     }
 }
+
