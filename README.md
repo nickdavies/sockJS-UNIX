@@ -19,7 +19,7 @@ Which will start a sockJS server listening on port `8080`
 
 Then you can run the backend server with:
 
-    go run backend.go
+    go run example.go backend.go
 
 Which will listen on the unix socket `/tmp/sockjs-unix.sock` 
 
