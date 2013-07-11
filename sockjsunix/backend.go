@@ -1,4 +1,4 @@
-package main
+package sockjsunix
 
 import "fmt"
 import "os"
@@ -9,8 +9,8 @@ import "encoding/json"
 type HandlerFunc func (chan Packet, chan interface{})
 
 type Packet struct {
-    Body interface{}
-    Channel string
+    Body interface{}    `json:"body"`
+    Channel string      `json:"channel"`
 }
 
 func packetStreamer(fd net.Conn, handler HandlerFunc) {
@@ -40,7 +40,7 @@ func packetStreamer(fd net.Conn, handler HandlerFunc) {
             var p Packet
             err := dec.Decode(&p)
             if err != nil {
-                fmt.Println("error:", err)
+                fmt.Println("lib error:", err)
                 close(inbound)
                 return
             }
@@ -49,7 +49,9 @@ func packetStreamer(fd net.Conn, handler HandlerFunc) {
         }
     }()
 
+    fmt.Println("Handler: Enter")
     handler(inbound, outbound)
+    fmt.Println("Handler: Leave")
 }
 
 func UnixSockJSServer(path string, handler HandlerFunc) error {
