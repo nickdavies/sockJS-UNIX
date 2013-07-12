@@ -1,19 +1,23 @@
 package sockjsunix
 
-import "fmt"
 import "os"
 import "net"
 import "os/signal"
 import "encoding/json"
+import "github.com/vaughan0/go-logging"
 
-type HandlerFunc func (chan Packet, chan interface{})
+type HandlerFunc func (Header, chan Packet, chan interface{})
 
 type Packet struct {
     Body interface{}    `json:"body"`
     Channel string      `json:"channel"`
 }
 
-func packetStreamer(fd net.Conn, handler HandlerFunc) {
+type Header struct {
+    Id string
+}
+
+func packetStreamer(fd net.Conn, handler HandlerFunc, log *logging.Logger) {
     // Without the buffer its possible that the call inbound <- p
     // would block causing the decoder to never register the error
     // and the go routine would never end
@@ -27,38 +31,47 @@ func packetStreamer(fd net.Conn, handler HandlerFunc) {
         for reply := range outbound {
             output, err := json.Marshal(reply)
             if err != nil {
-                fmt.Println("error:", err)
+                log.Error("SockJSUnix: Failed to json encode reply - ", err, " when encoding ", reply)
+                continue
             }
             fd.Write(output)
             fd.Write([]byte("\n"))
         }
     }()
 
+    dec := json.NewDecoder(fd)
+    dec.UseNumber()
+
+    var h Header
+    err := dec.Decode(&h)
+    if err != nil {
+        log.Error("SockJSUnix: Did not receive header properly - ", err)
+        return
+    }
+
     go func () {
-        dec := json.NewDecoder(fd)
-        dec.UseNumber()
         for {
             var p Packet
             err := dec.Decode(&p)
             if err != nil {
-                fmt.Println("lib error:", err)
+                log.Warn("SockJSUnix: Error decoding inbound json - ", err)
                 close(inbound)
                 return
             }
-            fmt.Println("got:", p)
+            log.Debug("SockJSUnix: received packet - ", p)
             inbound <- p
         }
     }()
 
-    fmt.Println("Handler: Enter")
-    handler(inbound, outbound)
-    fmt.Println("Handler: Leave")
+    log.Debug("SockJSUnix: Handler Enter")
+    handler(h, inbound, outbound)
+    log.Debug("SockJSUnix: Handler Leave")
 }
 
-func UnixSockJSServer(path string, handler HandlerFunc) error {
+func UnixSockJSServer(path string, handler HandlerFunc, log *logging.Logger) error {
     l, err := net.Listen("unix", path)
     if err != nil {
-        fmt.Println("listen error", err)
+        log.Fatal("Listen error: ", err)
         return err
     }
     defer l.Close()
@@ -72,13 +85,13 @@ func UnixSockJSServer(path string, handler HandlerFunc) error {
         for {
             fd, err := l.Accept()
             if err != nil {
-                fmt.Println("accept error", err)
+                log.Error("SockJSUnix: Server accept error - ", err)
                 die_ch <-err
                 return
             }
 
-            fmt.Println("accepted connection")
-            go packetStreamer(fd, handler)
+            log.Info("SockJsUnix: Accepted connection")
+            go packetStreamer(fd, handler, log)
         }
     }()
 

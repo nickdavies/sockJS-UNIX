@@ -19,6 +19,7 @@ sockjs_tcp.on('connection', function(socket) {
 
     var backend = net.createConnection({path: settings.backend_socket})
     backend.setKeepAlive(true);
+    backend.write(JSON.stringify({"id": socket.id}));
 
     socket.on('data', function(message) {
         try {
@@ -56,9 +57,11 @@ sockjs_tcp.on('connection', function(socket) {
 
     // On End
     socket.on('close', function(){
+        console.log("socket closed killing backend", arguments);
         backend.end();
     });
     backend.on('close', function(){
+        console.log("backend closed killing socket");
         socket.end();
     });
     backend.on('error', function(){
