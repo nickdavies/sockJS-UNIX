@@ -36,6 +36,7 @@ func packetStreamer(fd net.Conn, handler HandlerFunc) {
 
     go func () {
         dec := json.NewDecoder(fd)
+        dec.UseNumber()
         for {
             var p Packet
             err := dec.Decode(&p)
