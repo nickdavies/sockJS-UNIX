@@ -19,6 +19,11 @@ type Header struct {
 }
 
 func packetStreamer(fd net.Conn, handler HandlerFunc, log *logging.Logger) {
+    defer func(){
+        if recovery := recover(); recovery != nil {
+            log.Errorf("Request Paniced: %v", recovery)
+        }
+    }()
     // Without the buffer its possible that the call inbound <- p
     // would block causing the decoder to never register the error
     // and the go routine would never end
