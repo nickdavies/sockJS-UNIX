@@ -1,5 +1,6 @@
 package sockjsunix
 
+import "io"
 import "os"
 import "net"
 import "os/signal"
@@ -53,7 +54,10 @@ func packetStreamer(fd net.Conn, handler HandlerFunc, log *logging.Logger) {
         for {
             var p Packet
             err := dec.Decode(&p)
-            if err != nil {
+            if err == io.EOF {
+                close(inbound)
+                return
+            } else if err != nil {
                 log.Warn("SockJSUnix: Error decoding inbound json - ", err)
                 close(inbound)
                 return
