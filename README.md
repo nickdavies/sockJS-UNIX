@@ -15,7 +15,7 @@ You can run the server with:
 
     node server.js
 
-Which will start a sockJS server listening on port `8080`
+Which will start a sockJS server listening on port `1334`
 
 Then you can run the backend server with:
 
