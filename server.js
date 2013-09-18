@@ -45,7 +45,7 @@ sockjs_tcp.on('connection', function(socket) {
     backend.setKeepAlive(true);
     backend.write(JSON.stringify({"id": socket.id}));
 
-    socket.on('data', function(message) {
+    socket.on('data', function(message) {
         try {
             var data = JSON.parse(message);
 
@@ -60,7 +60,7 @@ sockjs_tcp.on('connection', function(socket) {
             return;
         }
         backend.write(message);
-    });
+    });
 
     backend.on('data', function(packet){
 
