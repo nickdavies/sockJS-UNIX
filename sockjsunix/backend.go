@@ -64,15 +64,16 @@ func packetStreamer(fd net.Conn, handler HandlerFunc, log Logger) {
     }
 
     go func () {
+        defer close(inbound)
         for {
             var p Packet
             err := dec.Decode(&p)
             if err == io.EOF {
-                close(inbound)
                 return
             } else if err != nil {
-                log.Warnf("SockJSUnix: Error decoding inbound json - %s", err)
-                close(inbound)
+                if err.Error() != "read unix @: use of closed network connection" {
+                    log.Warnf("SockJSUnix: Error decoding inbound json - %s", err)
+                }
                 return
             }
             log.Debugf("SockJSUnix: received packet - %s", p)
