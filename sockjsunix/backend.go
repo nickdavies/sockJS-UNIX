@@ -36,7 +36,7 @@ func packetStreamer(fd net.Conn, handler HandlerFunc, log Logger) {
     // would block causing the decoder to never register the error
     // and the go routine would never end
     var inbound = make(chan Packet, 100)
-    var outbound = make(chan interface{})
+    var outbound = make(chan interface{}, 5)
 
     defer fd.Close()
     defer close(outbound)
