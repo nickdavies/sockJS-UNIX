@@ -1,6 +1,7 @@
 package main
 
 import "fmt"
+import "time"
 import "github.com/vaughan0/go-logging"
 import "./sockjsunix"
 
@@ -25,5 +26,9 @@ func main() {
     fmt.Println(<-inbound)
 
     close(outbound)
+
+    // this is here to give the client.go time to shutdown
+    // only needs to be here to show that it does close cleanly
+    <-time.After(100 * time.Millisecond)
 }
 
