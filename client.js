@@ -4,7 +4,7 @@ var SockJS = require('sockjs-client-node');
 var settings = {
     listen_socket: '/tmp/sockjs-unix-client.sock',
     backend: process.argv[2] || 'http://localhost:1334/',
-    log_level: "debug"
+    log_level: "warn"
 };
 
 var log_levels = {
@@ -29,38 +29,46 @@ var socket_count = 0;
 var sockjs_count = 0;
 
 var socket_server = net.createServer(function(client) {
+    log_message("info", "Accepted Connection");
     socket_count ++;
 
     var data_buffer = [];
     var sockjs = new SockJS(settings.backend);
 
     client.on('close', function(){
+        log_message("debug", "Client closed connection");
         socket_count--;
         sockjs.close();
     });
 
     client.on('data', function(packet) {
-        reply_buffer += packet.toString();
-        if (reply_buffer.indexOf('\n') != -1) {
+        log_message("debug", "Client data: " + packet);
+        data_buffer += packet.toString();
+        if (data_buffer.indexOf('\n') != -1) {
 
-            var lines = reply_buffer.split('\n');
+            var lines = data_buffer.split('\n');
             for (var i = 0; i < lines.length - 1; i++){
                 sockjs.send(lines[i]);
             }
-            reply_buffer = lines[lines.length - 1];
+            data_buffer = lines[lines.length - 1];
         }
     });
 
-    sockjs.onopen = function() {
-        sockjs_count++;
-        sockjs.onmessage = function(e) {
-            client.write(e.data);
-        }
+    sockjs.onmessage = function(e) {
+        log_message("debug", "SockJS message");
+        log_message("verbose", "SockJS message: " + e.data);
+        client.write(e.data);
+    }
 
+    sockjs.onopen = function() {
+        log_message("debug", "SockJS open");
+        sockjs_count++;
         client.write(JSON.stringify({"connect": true}));
+        log_message("debug", "SockJS sent handshake");
     }
 
     sockjs.onclose = function() {
+        log_message("debug", "SockJS close");
         sockjs_count--;
         client.end()
     }
