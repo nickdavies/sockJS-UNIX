@@ -6,26 +6,6 @@ import "net"
 import "os/signal"
 import "encoding/json"
 
-type Logger interface {
-    Debugf(format string, args ...interface{})
-    Noticef(format string, args ...interface{})
-    Infof(format string, args ...interface{})
-    Warnf(format string, args ...interface{})
-    Errorf(format string, args ...interface{})
-    Fatalf(format string, args ...interface{})
-}
-
-type HandlerFunc func (Header, chan Packet, chan interface{})
-
-type Packet struct {
-    Body interface{}    `json:"body"`
-    Channel string      `json:"channel"`
-}
-
-type Header struct {
-    Id string
-}
-
 func packetStreamer(fd net.Conn, handler HandlerFunc, log Logger) {
     defer func(){
         if recovery := recover(); recovery != nil {
@@ -48,6 +28,7 @@ func packetStreamer(fd net.Conn, handler HandlerFunc, log Logger) {
                 log.Errorf("SockJSUnix: Failed to json encode reply - %s when encoding %s", err, reply)
                 continue
             }
+            log.Debugf("SockJSUnix: writing - %s", output)
             fd.Write(output)
             fd.Write([]byte("\n"))
         }
@@ -108,7 +89,7 @@ func UnixSockJSServer(path string, handler HandlerFunc, log Logger) error {
                 return
             }
 
-            log.Infof("SockJsUnix: Accepted connection")
+            log.Infof("SockJSUnix: Accepted connection")
             go packetStreamer(fd, handler, log)
         }
     }()
