@@ -25,6 +25,7 @@ func UnixSockJSClient(path string, direct bool, log Logger) (inbound chan Packet
     }
     log.Debugf("SockJSUnix: Connection established")
     dec := json.NewDecoder(sock)
+    dec.UseNumber()
 
     if direct {
         // Handshake is require to make sure that no
