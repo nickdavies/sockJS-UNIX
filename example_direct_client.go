@@ -11,7 +11,7 @@ func main() {
     log.Threshold = logging.Debug
 
     log.Debug("Starting example!")
-    inbound, outbound, err := sockjsunix.UnixSockJSClient("/tmp/sockjs-unix-client.sock", true, log)
+    inbound, outbound, err := sockjsunix.UnixSockJSClient("/tmp/sockjs-unix.sock", false, log)
     if err != nil {
         panic(err)
     }

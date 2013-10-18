@@ -28,6 +28,7 @@ func packetStreamer(fd net.Conn, handler HandlerFunc, log Logger) {
                 log.Errorf("SockJSUnix: Failed to json encode reply - %s when encoding %s", err, reply)
                 continue
             }
+            log.Debugf("SockJSUnix: writing - %s", output)
             fd.Write(output)
             fd.Write([]byte("\n"))
         }
@@ -88,7 +89,7 @@ func UnixSockJSServer(path string, handler HandlerFunc, log Logger) error {
                 return
             }
 
-            log.Infof("SockJsUnix: Accepted connection")
+            log.Infof("SockJSUnix: Accepted connection")
             go packetStreamer(fd, handler, log)
         }
     }()
