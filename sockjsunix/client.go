@@ -4,18 +4,7 @@ import "io"
 import "net"
 import "encoding/json"
 
-import "crypto/rand"
-import "encoding/base64"
-
-func getId() (string) {
-    b := make([]byte, 30)
-    rand.Read(b)
-    en := base64.StdEncoding
-    d := make([]byte, en.EncodedLen(len(b)))
-    en.Encode(d, b)
-
-    return string(d)
-}
+import "code.google.com/p/go-uuid/uuid"
 
 func UnixSockJSClient(path string, direct bool, log Logger) (inbound chan Packet, outbound chan Packet, err error) {
     log.Debugf("SockJSUnix: Dialing")
@@ -43,7 +32,7 @@ func UnixSockJSClient(path string, direct bool, log Logger) (inbound chan Packet
         log.Debugf("SockJSUnix: sending header")
 
         enc := json.NewEncoder(sock)
-        err := enc.Encode(Header{getId()})
+        err := enc.Encode(Header{uuid.New()})
         if err != nil {
             log.Errorf("SockJSUnix: failed to send header: %s", err)
             return nil, nil, err
